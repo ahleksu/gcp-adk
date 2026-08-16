@@ -48,6 +48,42 @@ a behavior change — separate commits, even in the same session.
 - Squash-merge is fine for single-purpose PRs; use a merge commit if the PR intentionally
   preserves multiple meaningful commits (e.g. a multi-step migration).
 
+## Architectural Decision Records (ADRs)
+
+Log non-obvious architectural or technical decisions as ADRs under `docs/` — one
+markdown file per decision, not a running log in this file. A decision is
+"non-obvious" if a future reader (human or agent) could plausibly make a different
+choice without knowing why this one was picked: credential/auth approach, package
+manager, which tool generated the scaffold, a rejected alternative and why, etc. Pure
+implementation details that follow obviously from the code don't need one.
+
+- **Location & naming:** `docs/NNNN-short-kebab-title.md`, zero-padded four-digit
+  sequence starting at `0001`, incrementing — never reuse or renumber.
+- **Template:**
+  ```markdown
+  # ADR NNNN: <Title>
+
+  ## Status
+  Accepted | Superseded by ADR NNNN | Deprecated
+
+  ## Context
+  What prompted this decision — the constraint, requirement, or tradeoff in play.
+
+  ## Decision
+  What was chosen, stated plainly.
+
+  ## Alternatives considered
+  What else was on the table and why it lost.
+
+  ## Consequences
+  What this makes easier, harder, or forecloses.
+  ```
+- **When to write one:** at the time the decision is made, in the same PR/commit as
+  the change it justifies — not retroactively reconstructed later.
+- **Superseding a decision:** don't edit an old ADR's Decision section. Write a new
+  ADR, and update the old one's Status to point at it — the history of *why* it
+  changed is the point.
+
 ## Operational rules for coding agents working in this repo
 
 These come from the `agents-cli` scaffold this project was generated with — they apply

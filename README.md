@@ -17,7 +17,8 @@ There are three milestones. Do them in order.
 | 2 | Wire that key into this repo | This doc, below |
 | 3 | Run the agent locally via ADK + the Agents CLI | This doc, below |
 
-Repo conventions (commit style, PR practice) live in [AGENTS.md](AGENTS.md).
+Repo conventions (commit style, PR practice) live in [AGENTS.md](AGENTS.md). Why behind
+the non-obvious choices below lives in [docs/](docs/) as ADRs.
 
 ## Prerequisites
 
@@ -39,6 +40,7 @@ gcp-adk/
 ├── GCP_SETUP.md              # Milestone 1
 ├── README.md                 # this file — Milestones 2-3
 ├── AGENTS.md                 # commit/PR/agent-context conventions
+├── docs/                      # ADRs — why behind non-obvious decisions
 ├── app/
 │   ├── agent.py               # root_agent definition — model, instruction, tools
 │   ├── app_utils/              # generated serving/A2A wiring — don't hand-edit
