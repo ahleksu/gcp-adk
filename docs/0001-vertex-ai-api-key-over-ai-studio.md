@@ -1,4 +1,4 @@
-# ADR 0001: Authenticate via a Vertex AI / Gemini Enterprise Agent Platform API key, not an AI Studio key
+# ADR 0001: Authenticate via an Agent Platform authorization key, not an AI Studio key
 
 ## Status
 Accepted
@@ -16,29 +16,31 @@ pay-as-you-go track. None of it touches the $300 credit. Only usage billed throu
 Vertex AI (rebranded "Gemini Enterprise Agent Platform") draws on it.
 
 ## Decision
-Use a Vertex AI API key, backed by a service account (not Application Default
-Credentials, not a bare service-account JSON key file), authenticated via
+Use an Agent Platform authorization key, backed by a service account (not Application
+Default Credentials for model calls and not a service-account JSON key file), authenticated via
 `GOOGLE_API_KEY` + `GOOGLE_GENAI_USE_ENTERPRISE=TRUE` in `.env`. Documented in
 `GCP_SETUP.md`.
 
 ## Alternatives considered
 - **AI Studio key.** Rejected — does not draw on the $300 credit, which was an
   explicit, non-negotiable requirement.
-- **Application Default Credentials (`gcloud auth application-default login`).**
-  Rejected — out of scope for this prototype; adds a `gcloud` install/auth
-  dependency the "API key only" requirement was meant to avoid.
+- **Application Default Credentials for model calls.** Rejected — model usage must
+  remain billed through the service-account-bound authorization key. The generated
+  local server still uses ADC separately for Cloud Logging; see ADR 0004.
 - **Express Mode (`console.cloud.google.com/expressmode`).** Considered and
   documented as a footnote in `GCP_SETUP.md`'s troubleshooting section — it's the
   fastest path to *a* working key, but it's a separate no-billing quota that also
   does not draw on the $300 credit, so it doesn't satisfy the requirement either.
 
 ## Consequences
-- Setup is more involved than the AI Studio path: enable the Vertex AI API, create
-  a service account with the "Gemini Enterprise Agent Platform Express User (Beta)"
-  role, then create a credential-authenticated-through-that-service-account API key.
-  (The "Express" in that IAM role's name is unrelated to Express Mode billing — this
-  tripped up an early draft of the guide; see the note in `GCP_SETUP.md` step 3.)
+- Setup is more involved than the AI Studio path: enable Agent Platform API
+  (`aiplatform.googleapis.com`), create a service account with Agent Platform User
+  (`roles/aiplatform.user`), then create an authorization key bound to that account and
+  restricted to Agent Platform API.
 - `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` must stay unset in `.env` — if
   either is present alongside an API key, the `google-genai` SDK silently drops the
   key and requires ADC instead.
+- The generated Agents CLI server has an independent ADC requirement for Cloud
+  Logging. `GCLOUD_PROJECT` supplies its project without changing model auth; see
+  ADR 0004.
 - This feature is Pre-GA/preview as of this writing; console screens may shift.

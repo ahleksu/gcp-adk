@@ -37,3 +37,7 @@ bare-minimum layout.
 - Generated infra (`app/app_utils/`, `app/fast_api_app.py`) is treated as read-only
   per the code-preservation rule in `AGENTS.md` — future agent code changes belong in
   `app/agent.py` only.
+- The generated `app/fast_api_app.py` initializes Cloud Logging at import time, even
+  for this local prototype. Therefore `agents-cli run` and `agents-cli playground`
+  need local ADC and `GCLOUD_PROJECT`, independently of the authorization key used for
+  model calls. This unexpected scaffold consequence is recorded in ADR 0004.

@@ -25,13 +25,19 @@ the non-obvious choices below lives in [docs/](docs/) as ADRs.
 - macOS (this guide assumes it; flagged inline where Linux/Windows differ)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) — Python package/venv
   manager used for everything here. Install: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) — required on a fresh
+  machine to establish the ADC credential used by the generated Cloud Logging client.
 - Python is *not* a separate prerequisite — `uv` downloads and pins the right interpreter
   itself the first time you run a command in this repo (this project requires
   `>=3.11,<3.14`).
-- A completed [Milestone 1](GCP_SETUP.md) — you need the API key before continuing.
+- A completed [Milestone 1](GCP_SETUP.md) — you need the authorization key and its
+  backing service account before continuing.
 
-You do **not** need `gcloud` installed, a service account key file, or
-`gcloud auth login` for this prototype — everything below runs on a plain API key.
+Model calls use the authorization key; no service-account JSON key file is needed.
+However, the generated `app/fast_api_app.py` also initializes Cloud Logging, which
+requires local Application Default Credentials (ADC) plus a project ID. The setup
+below establishes ADC with `gcloud auth application-default login`. See
+[ADR 0004](docs/0004-generated-server-cloud-logging-auth.md).
 
 ## Project layout
 
@@ -65,14 +71,16 @@ else under `app/` is generated wiring the Agents CLI relies on.
    cp .env.example .env
    ```
 2. Open `.env` and paste the key from [Milestone 1](GCP_SETUP.md) in place of
-   `YOUR_API_KEY_HERE`:
+   `YOUR_API_KEY_HERE`, then set the same GCP project ID used to create the key:
    ```env
    GOOGLE_GENAI_USE_ENTERPRISE=TRUE
    GOOGLE_API_KEY="...your real key..."
+   GCLOUD_PROJECT="your-project-id"
    ```
 3. Leave `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` **unset**. If either is
-   present in the environment, the SDK silently drops your API key and requires
-   `gcloud` ADC login instead — which this prototype deliberately doesn't use.
+   present, `google-genai` switches model authentication from `GOOGLE_API_KEY` to ADC.
+   `GCLOUD_PROJECT` is deliberately different: it supplies a project to the generated
+   Cloud Logging client without changing model authentication.
 4. `.env` is already listed in `.gitignore` — `git status` should never show it as a
    change to commit. If it ever does, stop and check you didn't `git add -f` it.
 
@@ -94,6 +102,19 @@ per-project dependency):
 ```bash
 uv tool install google-agents-cli
 ```
+
+Authenticate the generated server's Cloud Logging client once on each development
+machine:
+
+```bash
+gcloud auth application-default login
+```
+
+This ADC credential is used by the generated serving layer, not by the Gemini model
+request. The model request continues to use `GOOGLE_API_KEY`. Do not substitute
+`agents-cli login -i`: when `GOOGLE_API_KEY` is already present, Agents CLI can treat
+the key as sufficient authentication without establishing the ADC that Cloud Logging
+requires.
 
 Verify it can see this project:
 
@@ -125,6 +146,16 @@ this is the Agents-CLI-native entry point):
 ```bash
 agents-cli install
 ```
+
+Before starting the agent, isolate and verify the authorization key:
+
+```bash
+uv run python -c 'from dotenv import load_dotenv; load_dotenv(); from google import genai; from google.genai.types import HttpOptions; client=genai.Client(http_options=HttpOptions(api_version="v1")); print(client.models.generate_content(model="gemini-2.5-flash", contents="Reply only with OK").text)'
+```
+
+Do not continue until this prints a model response such as `OK`. This check bypasses
+the Agents CLI server, Cloud Logging, and the agent's tools, so a failure here belongs
+to the key, its backing service account, or the GCP project configuration.
 
 ### Option A — interactive playground (recommended first run)
 
@@ -165,13 +196,19 @@ uv run adk web
   when it's next to `app/`).
 - **`agents-cli: command not found`** — the `uv tool install` step above installs it as a
   global tool; open a new terminal, or run `uv tool update-shell` and restart your shell.
+- **`OSError: Project was not passed and could not be determined from the environment`**
+  or **`Local server did not start within 30s`** — confirm `.env` contains
+  `GCLOUD_PROJECT="your-project-id"`, run `gcloud auth application-default login`, then
+  verify the exact failing import with
+  `uv run python -c 'import app.fast_api_app; print("startup_import=ok")'`. See
+  [ADR 0004](docs/0004-generated-server-cloud-logging-auth.md).
 - **`403 PERMISSION_DENIED` / `API_KEY_SERVICE_BLOCKED`** — the key's own **API
-  restrictions** setting doesn't allow the Vertex AI API. See
-  [GCP_SETUP.md](GCP_SETUP.md) step 5 in "Create the API key" (or its Troubleshooting
+  restrictions** setting doesn't allow **Agent Platform API**
+  (`aiplatform.googleapis.com`). See [GCP_SETUP.md](GCP_SETUP.md) step 4 (or its Troubleshooting
   section) to fix it in the Console.
 - **Other 403 / permission errors calling the model** — usually means the API key's
-  backing service account is missing the "Gemini Enterprise Agent Platform Express User"
-  role, or the Vertex AI API isn't enabled on the project the key belongs to. Re-check
+  backing service account is missing **Agent Platform User** (`roles/aiplatform.user`),
+  or Agent Platform API isn't enabled on the project the key belongs to. Re-check
   [GCP_SETUP.md](GCP_SETUP.md) steps 2–3.
 - **`1007 Invalid resource field value in the request` in `uv run adk web`** — this
   means the dev UI opened a live/voice WebSocket session (`run_live`), a different code
@@ -188,7 +225,8 @@ uv run adk web
 ## Non-goals (out of scope for this prototype)
 
 Deployment (Cloud Run / Agent Runtime / GKE), CI/CD, multi-agent orchestration, and
-production credential patterns (Application Default Credentials, service-account key
-files) are all deliberately not covered here. The scaffold includes a `Dockerfile` and
-A2A wiring because that's what `agents-cli scaffold create` always generates — they're
-inert until you explicitly opt into deployment with `agents-cli scaffold enhance`.
+production credential design are deliberately not covered here. Local ADC is used only
+because the generated server initializes Cloud Logging; the production lifecycle is
+still out of scope. The scaffold includes a `Dockerfile` and A2A wiring because that's
+what `agents-cli scaffold create` generates — they're inert until you explicitly opt
+into deployment with `agents-cli scaffold enhance`.
