@@ -165,10 +165,20 @@ uv run adk web
   when it's next to `app/`).
 - **`agents-cli: command not found`** — the `uv tool install` step above installs it as a
   global tool; open a new terminal, or run `uv tool update-shell` and restart your shell.
-- **403 / permission errors calling the model** — almost always means the API key's
+- **`403 PERMISSION_DENIED` / `API_KEY_SERVICE_BLOCKED`** — the key's own **API
+  restrictions** setting doesn't allow the Vertex AI API. See
+  [GCP_SETUP.md](GCP_SETUP.md) step 5 in "Create the API key" (or its Troubleshooting
+  section) to fix it in the Console.
+- **Other 403 / permission errors calling the model** — usually means the API key's
   backing service account is missing the "Gemini Enterprise Agent Platform Express User"
   role, or the Vertex AI API isn't enabled on the project the key belongs to. Re-check
   [GCP_SETUP.md](GCP_SETUP.md) steps 2–3.
+- **`1007 Invalid resource field value in the request` in `uv run adk web`** — this
+  means the dev UI opened a live/voice WebSocket session (`run_live`), a different code
+  path from normal text chat that behaves differently under this API-key auth setup.
+  Use plain text chat in the UI (avoid the mic/live toggle), or use
+  `agents-cli playground` / `agents-cli run` instead, which use the standard
+  non-live request path.
 - **It works but nothing shows up in Cloud Billing** — billing data can lag by hours;
   this doesn't mean the credit isn't being used.
 - **Tests**: `uv run pytest tests/unit` runs with no API key required (structural checks

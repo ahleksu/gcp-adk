@@ -74,7 +74,14 @@ hood, even though you'll only ever handle a plain key string — no JSON key fil
 3. In the dialog, check **"Authenticate API calls through a service account"** and select
    the service account you created in step 3.
 4. Click **Create**.
-5. Copy the key — you'll paste it into `.env` in [README.md](README.md)'s Milestone 2.
+5. On the resulting key details screen (or **Edit API key** later), check **"API
+   restrictions"**. If it's set to "Restrict key," make sure **"Vertex AI API"**
+   (may also show as "Gemini Enterprise Agent Platform API") is in the allowed list —
+   or select **"Don't restrict key"** for simplicity in this prototype. Click **Save**.
+   Skipping this step is the single most common cause of a working-looking key that
+   still fails with `403 PERMISSION_DENIED` / `API_KEY_SERVICE_BLOCKED` once you try to
+   actually use it.
+6. Copy the key — you'll paste it into `.env` in [README.md](README.md)'s Milestone 2.
    You won't be able to see it again after leaving this screen (you can always generate a
    new one, but you'd have to update `.env` again).
 
@@ -85,6 +92,15 @@ string you paste straight into `GOOGLE_API_KEY` in Milestone 2, nothing else cha
 
 ## Troubleshooting
 
+- **`403 PERMISSION_DENIED` / `API_KEY_SERVICE_BLOCKED` when actually calling the
+  model** (`Requests to this API aiplatform.googleapis.com ... are blocked.`). Your
+  key already exists but its **API restrictions** setting doesn't allow the Vertex AI
+  API. Go to
+  [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials),
+  click your key, and under "API restrictions" add "Vertex AI API" (or "Gemini
+  Enterprise Agent Platform API") to the allowed list, or switch to "Don't restrict
+  key." Save and wait ~1–2 minutes before retrying — this is the single most common
+  failure once the key itself is created.
 - **"Organization policy prevents this operation" when creating the API key.** Some GCP
   organizations block service-account-backed API key creation via the org policy
   `iam.managed.disableServiceAccountApiKeyCreation`. This is unlikely for an individual
