@@ -78,8 +78,10 @@ hood, even though you'll only ever handle a plain key string — no JSON key fil
    You won't be able to see it again after leaving this screen (you can always generate a
    new one, but you'd have to update `.env` again).
 
-**Expected result:** a dialog showing a string that looks like `AIzaSy...`. That's your
-key for Milestone 2.
+**Expected result:** a dialog showing your new key. Note it will *not* look like an
+AI Studio key (`AIzaSy...`) — a service-account-backed key from this flow has a
+different-looking format (e.g. starting `AQ.`). That's expected; it's still a plain
+string you paste straight into `GOOGLE_API_KEY` in Milestone 2, nothing else changes.
 
 ## Troubleshooting
 
@@ -108,6 +110,43 @@ key for Milestone 2.
   "Gemini Enterprise Agent Platform" or "Vertex AI" — the underlying flow (project →
   enable API → service account → credential) tends to stay stable even when menu labels
   change.
+
+## Verify the key works (optional, before Milestone 2)
+
+You don't need `uv`, this repo, or anything else installed for this — just a terminal
+and `curl`. It isolates one question: *is this key valid and able to call a model at
+all*, before wiring it into the agent scaffold. Run it yourself; this is a live call
+against your key, so it's not something to hand off.
+
+```bash
+GOOGLE_API_KEY="paste-your-key-here"
+curl -X POST \
+  -H "Content-Type: application/json" \
+  "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}" \
+  -d '{
+    "contents": {
+      "role": "user",
+      "parts": { "text": "Explain how AI works in a few words" }
+    }
+  }'
+```
+
+Notes on this specific call:
+- The API-key auth path never needs a project or location in the URL — no
+  `projects/{id}/locations/{loc}/` segment, unlike the ADC/service-account-key REST
+  examples you may see elsewhere in Google's docs. That's expected here, not a mistake.
+- The key goes in the `?key=` query parameter, not an `Authorization` header.
+- This example deliberately uses `gemini-2.5-flash` (Google's own documented example
+  model for this exact call), not this repo's `gemini-3.6-flash` — the point here is
+  testing the key/auth, not the specific model the agent will use later. If this curl
+  call works but the actual agent doesn't, that's a model-availability question, not an
+  auth problem — see README.md's Troubleshooting.
+
+**Expected result:** a JSON body containing a `candidates` array with generated text
+inside it. If you instead get a `403`/`PERMISSION_DENIED`, re-check the service-account
+role in step 3 above; a `404` on the model name means try a different `MODEL_ID` (model
+availability varies by key/project); anything else, re-verify the key was copied
+correctly with no extra whitespace.
 
 ## Next
 

@@ -65,8 +65,8 @@ else under `app/` is generated wiring the Agents CLI relies on.
 2. Open `.env` and paste the key from [Milestone 1](GCP_SETUP.md) in place of
    `YOUR_API_KEY_HERE`:
    ```env
-   GOOGLE_GENAI_USE_VERTEXAI=TRUE
-   GOOGLE_API_KEY="AIzaSy...your real key..."
+   GOOGLE_GENAI_USE_ENTERPRISE=TRUE
+   GOOGLE_API_KEY="...your real key..."
    ```
 3. Leave `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` **unset**. If either is
    present in the environment, the SDK silently drops your API key and requires
