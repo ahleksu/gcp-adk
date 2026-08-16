@@ -145,8 +145,25 @@ async def attach_a2a_routes(
         agent_version=resolved_agent_version,
     ).build()
 
+    from google.adk.a2a.converters.request_converter import (
+        convert_a2a_request_to_agent_run_request,
+    )
+    from google.adk.a2a.executor.config import A2aAgentExecutorConfig
+    from google.adk.agents._streaming_mode import StreamingMode
+    from google.adk.agents.run_config import RunConfig
+
+    def _streaming_request_converter(request, part_converter):
+        run_request = convert_a2a_request_to_agent_run_request(request, part_converter)
+        if run_request.run_config:
+            run_request.run_config.streaming_mode = StreamingMode.SSE
+        else:
+            run_request.run_config = RunConfig(streaming_mode=StreamingMode.SSE)
+        return run_request
+
+    config = A2aAgentExecutorConfig(request_converter=_streaming_request_converter)
+
     request_handler = DefaultRequestHandler(
-        agent_executor=A2aAgentExecutor(runner=runner),
+        agent_executor=A2aAgentExecutor(runner=runner, config=config),
         task_store=task_store,
         agent_card=agent_card,
     )
