@@ -61,6 +61,7 @@ _WMO_WEATHER_CODES: dict[int, str] = {
 
 _GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 _FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+_HTTP_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 # Thread-pool for running async HTTP calls from synchronous ADK tool functions.
 # ADK may invoke tools from within a running event loop, so asyncio.run() would
@@ -75,7 +76,7 @@ def _run_async(coro):
         asyncio.get_running_loop()
         # Already inside an event loop — offload to a worker thread.
         future = _executor.submit(asyncio.run, coro)
-        return future.result(timeout=30)
+        return future.result(timeout=60)
     except RuntimeError:
         # No running loop — safe to use asyncio.run directly.
         return asyncio.run(coro)
@@ -84,15 +85,18 @@ def _run_async(coro):
 async def _geocode(location: str) -> dict | None:
     """Resolve a location name to coordinates and timezone via Open-Meteo."""
     params = {"name": location, "count": 1, "language": "en", "format": "json"}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(_GEOCODING_URL, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
-            results = data.get("results")
-            if not results:
-                return None
-            return results[0]
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(_GEOCODING_URL, params=params, timeout=_HTTP_TIMEOUT) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                results = data.get("results")
+                if not results:
+                    return None
+                return results[0]
+    except (asyncio.TimeoutError, aiohttp.ClientError):
+        return None
 
 
 def get_weather(query: str) -> str:
@@ -121,11 +125,14 @@ def get_weather(query: str) -> str:
             "current": "temperature_2m,weather_code",
             "timezone": "auto",
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.get(_FORECAST_URL, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status != 200:
-                    return f"Sorry, I couldn't fetch weather data for {name}."
-                data = await resp.json()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(_FORECAST_URL, params=params, timeout=_HTTP_TIMEOUT) as resp:
+                    if resp.status != 200:
+                        return f"Sorry, I couldn't fetch weather data for {name}."
+                    data = await resp.json()
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            return f"Sorry, the weather service timed out for {name}. Please try again."
 
         current = data.get("current", {})
         temp_c = current.get("temperature_2m")
@@ -144,7 +151,10 @@ def get_weather(query: str) -> str:
             f"{temp_c}{temp_unit} ({temp_f}°F), {condition}."
         )
 
-    return _run_async(_fetch())
+    try:
+        return _run_async(_fetch())
+    except TimeoutError:
+        return f"Sorry, the weather service is not responding for: {query}. Please try again."
 
 
 def get_current_time(query: str) -> str:
@@ -177,7 +187,10 @@ def get_current_time(query: str) -> str:
             f"{now.strftime('%Y-%m-%d %H:%M:%S %Z (%z)')}."
         )
 
-    return _run_async(_fetch())
+    try:
+        return _run_async(_fetch())
+    except TimeoutError:
+        return f"Sorry, the time service is not responding for: {query}. Please try again."
 
 
 root_agent = Agent(
