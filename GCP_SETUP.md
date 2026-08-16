@@ -74,10 +74,22 @@ hood, even though you'll only ever handle a plain key string — no JSON key fil
 3. In the dialog, check **"Authenticate API calls through a service account"** and select
    the service account you created in step 3.
 4. Click **Create**.
-5. On the resulting key details screen (or **Edit API key** later), check **"API
-   restrictions"**. If it's set to "Restrict key," make sure **"Vertex AI API"**
-   (may also show as "Gemini Enterprise Agent Platform API") is in the allowed list —
-   or select **"Don't restrict key"** for simplicity in this prototype. Click **Save**.
+5. On the resulting key details screen (or **Edit API key** later), check **"Select
+   API restrictions"**. A key bound to a service account (as this one is) *requires*
+   at least one API here — there's no "Don't restrict key" option for this key type,
+   unlike a plain unbound key. Open the dropdown and make sure **"Vertex AI API"** is
+   checked (alongside "Gemini API" if it's already there — having both checked is
+   fine). Click **OK**, then **Save**.
+
+   **If "Vertex AI API" doesn't appear in that dropdown at all:** this list only
+   shows APIs enabled on the *project this key belongs to*. That means step 2 above
+   (enabling the Vertex AI API) either didn't complete or ran against a different
+   project than this key/service account ended up in. Go back to
+   `console.cloud.google.com/apis/enableflow?apiid=aiplatform.googleapis.com&project=YOUR_PROJECT_ID`
+   (use the project ID from your service account's email, e.g.
+   `name@YOUR_PROJECT_ID.iam.gserviceaccount.com`) to confirm/enable it there, then
+   return to this step — the option should now appear.
+
    Skipping this step is the single most common cause of a working-looking key that
    still fails with `403 PERMISSION_DENIED` / `API_KEY_SERVICE_BLOCKED` once you try to
    actually use it.
@@ -97,9 +109,12 @@ string you paste straight into `GOOGLE_API_KEY` in Milestone 2, nothing else cha
   key already exists but its **API restrictions** setting doesn't allow the Vertex AI
   API. Go to
   [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials),
-  click your key, and under "API restrictions" add "Vertex AI API" (or "Gemini
-  Enterprise Agent Platform API") to the allowed list, or switch to "Don't restrict
-  key." Save and wait ~1–2 minutes before retrying — this is the single most common
+  click your key, and under "Select API restrictions" add "Vertex AI API" to the
+  allowed list (a service-account-bound key requires at least one API here — there's
+  no "Don't restrict key" option for this key type). If "Vertex AI API" isn't in the
+  dropdown at all, that list only shows APIs enabled on the key's own project — go
+  re-run step 2's enable-API link against that specific project ID first. Save and
+  wait up to 5 minutes before retrying — this is the single most common
   failure once the key itself is created.
 - **"Organization policy prevents this operation" when creating the API key.** Some GCP
   organizations block service-account-backed API key creation via the org policy
